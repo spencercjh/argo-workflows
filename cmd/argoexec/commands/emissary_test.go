@@ -192,6 +192,57 @@ func TestEmissary(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, string(data)) // data is tgz format
 	})
+	t.Run("issue#11131_failed", func(t *testing.T) {
+		cmd := NewEmissaryCommand()
+		containerName = "main"
+		err := cmd.RunE(cmd, append([]string{"python", "-c"}, `
+from json import loads
+from json.decoder import JSONDecodeError
+print("""json: [{"name":"argument-1","value":"with \" quote"}]""")
+try:
+	loads("""[{"name":"argument-1","value":"with \" quote"}]""")
+except JSONDecodeError as e:
+	print(f"not ok: {e}")
+	raise e
+else:
+	print("ok")
+`))
+		assert.Error(t, err)
+	})
+	t.Run("issue#11131_success_with_three_backslashes", func(t *testing.T) {
+		cmd := NewEmissaryCommand()
+		containerName = "main"
+		err := cmd.RunE(cmd, append([]string{"python", "-c"}, `
+from json import loads
+from json.decoder import JSONDecodeError
+print("""json: [{"name":"argument-1","value":"with \\\" quote"}]""")
+try:
+	loads("""[{"name":"argument-1","value":"with \\\" quote"}]""")
+except JSONDecodeError as e:
+	print(f"not ok: {e}")
+	raise e
+else:
+	print("ok")
+`))
+		assert.NoError(t, err)
+	})
+	t.Run("issue#11131_success_with_python_raw_string", func(t *testing.T) {
+		cmd := NewEmissaryCommand()
+		containerName = "main"
+		err := cmd.RunE(cmd, append([]string{"python", "-c"}, `
+from json import loads
+from json.decoder import JSONDecodeError
+print(r'json: [{"name":"argument-1","value":"with \" quote"}]')
+try:
+	loads(r'[{"name":"argument-1","value":"with \" quote"}]')
+except JSONDecodeError as e:
+	print(f"not ok: {e}")
+	raise e
+else:
+	print("ok")
+`))
+		assert.NoError(t, err)
+	})
 }
 
 func run(script string) error {
